@@ -10,14 +10,11 @@ const cors = require("cors");
 
 const db = require("./src/Config/DatabaseConnect");
 const { configureSocket } = require('./src/Events/socket');
+const { errorHandler } = require('./src/Middlewares/errorHandlingMiddleware');
 
-//sheduler Manager
-const schedulerManager = require("./src/SchedulerManager/schedulerManager");
-
-
-//pending some work
-
-
+//routes
+const statergiesRoute = require("./src/Routes/statergisRoutes");
+const adminRoutes = require("./src/Routes/adminRoutes")
 
 
 //end section
@@ -50,3 +47,17 @@ const corsOptions = {
 // app.use(cors(corsOptions));
 
 configureSocket(io);
+
+
+app.use("/api/v1/statergies", statergiesRoute);
+app.use("/api/v1/admin", adminRoutes)
+
+app.use(errorHandler);
+
+db.once('open', async () => {
+    server.listen(process.env.PORT, () => {
+        console.log(`server is running on port ${process.env.PORT}`);
+    });
+});
+
+db.on('error', console.error.bind(console, 'MongoDB connection error:'));
