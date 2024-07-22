@@ -19,7 +19,7 @@ const seed = async () => {
                     cciUpperBand: 100
                 },
                 timeFrame: "5m",
-                lookbackDay: 2, // change to 1 it's saaturday s holidy so only testing perpose
+                lookbackDay: 4, // change to 1 it's saaturday s holidy so only testing perpose
                 lookBackCandleForSignal: 3,
                 pageSize: 10,
                 defaultIndex: "NIFTY200",
@@ -53,6 +53,23 @@ const seed = async () => {
                 defaultIndex: "NIFTY200",
                 pageSize: 10
 
+            },
+            RSICE: {
+                indicatorConfig: {
+                    rsiLength: 25,
+                    maLength: 150,
+                    maType: 'SMA',
+                    atrPeriod: 1,
+                    atrMultiplier: 2,
+                    useClosePriceForExtremums: true,
+                    checkCandles: 2,
+                },
+                timeFrame: "15m",
+                lookbackDay: 25,
+                lookBackCandleForSignal: 200,
+                pageSize: 10,
+                defaultIndex: "NIFTY200",
+                interval: 15
             }
         });
 

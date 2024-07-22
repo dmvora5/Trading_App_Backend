@@ -6,7 +6,7 @@ const { catchAsyncError } = require("../Utils");
 
 const schedulerManager = require("../SchedulerManager/schedulerManager");
 const ErrorHandler = require("../Error/ErrorHandler");
-const { startSslCciService, startBbTrandService } = require("../Services/statergiesService");
+const { startSslCciService, startBbTrandService, startRsiCeService } = require("../Services/statergiesService");
 
 
 
@@ -34,6 +34,13 @@ exports.addNewStatergyAction = catchAsyncError(async (req, res, next) => {
         /**BBTRAND statergy */
         case STATERGY_NAME.BBTRAND:
             await startBbTrandService({
+                setting,
+                count
+            })
+            break;
+        case STATERGY_NAME.RSICE:
+            console.log("call")
+            await startRsiCeService({
                 setting,
                 count
             })

@@ -2,6 +2,7 @@ const { STATERGY_NAME, MARKET_TIME } = require("../Constant");
 const SslAndCciService = require("./sslCciService");
 const schedulerManager = require("../SchedulerManager/schedulerManager");
 const BolingerBandeStatergy = require("./bollingerBandStatergies");
+const RsiAndCEStatergy = require("./RsiAndCEStatergy");
 
 
 
@@ -19,7 +20,7 @@ exports.startSslCciService = async ({ setting, count }) => {
     schedulerManager.addJob(STATERGY_NAME.SSLCCI, {
         initialHour: MARKET_TIME.OPENHOUR,
         initialMinute: MARKET_TIME.OPENMINUTE,
-        intervalMinutes: setting[STATERGY_NAME.SSLCCI].tickinterval,
+        intervalMinutes: setting[STATERGY_NAME.SSLCCI].interval,
         jobFunction: bindedRunFunction
     });
 }
@@ -59,4 +60,24 @@ exports.startBbTrandService = async ({ setting, count }) => {
             }
         }
     ])
+}
+
+
+exports.startRsiCeService = async ({ setting, count }) => {
+
+    const rsiCeInstance = new RsiAndCEStatergy({
+        ...setting[STATERGY_NAME.RSICE],
+        count: count
+    });
+
+    await rsiCeInstance.run();
+
+    const bindedRunFunction = rsiCeInstance.run.bind(rsiCeInstance);
+
+    schedulerManager.addJob(STATERGY_NAME.RSICE, {
+        initialHour: MARKET_TIME.OPENHOUR,
+        initialMinute: MARKET_TIME.OPENMINUTE,
+        intervalMinutes: setting[STATERGY_NAME.RSICE].interval,
+        jobFunction: bindedRunFunction
+    });
 }

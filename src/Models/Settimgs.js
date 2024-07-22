@@ -44,7 +44,23 @@ const schema = new mongoose.Schema({
         },
         defaultIndex: String,
         pageSize: Number
-
+    },
+    RSICE: {
+        indicatorConfig: {
+            rsiLength: Number,
+            maLength: Number,
+            maType: String,
+            atrPeriod: Number,
+            atrMultiplier: Number,
+            useClosePriceForExtremums: Boolean,
+            checkCandles: Number,
+        },
+        timeFrame: String,
+        lookbackDay: Number,
+        lookBackCandleForSignal: Number,
+        pageSize: Number,
+        defaultIndex: String,
+        interval: Number
     }
 });
 

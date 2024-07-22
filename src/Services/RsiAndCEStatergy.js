@@ -1,61 +1,64 @@
-const { SSLCciStrategy } = require("technical-strategies");
+
+const { RsiAndChandaliarExit } = require("technical-strategies");
 const { fetchStockData } = require("./stockDataService");
-const { getSelectedStock } = require("../Events/socket");
-const logger = require("../Utils/logger");
-const Settings = require("../Models/Settimgs");
 const StocksSymbol = require("../Models/StocksSymbol");
-const StockData = require("../Models/StockData");
+const { getSelectedStock } = require("../Events/socket");
 const { STATERGY_NAME } = require("../Constant");
+const Settings = require("../Models/Settimgs");
+const logger = require("../Utils/logger");
+const StockData = require("../Models/StockData");
 
 
-class SslAndCciService {
 
-    indicatorConfig;
+class RsiAndCEStatergy {
+
+    indicatorConfig = {
+        rsiLength: 25,
+        maLength: 150,
+        maType: 'SMA',
+        atrPeriod: 1,
+        atrMultiplier: 2,
+        useClosePriceForExtremums: true,
+        checkCandles: 2,
+    };
+
     timeFrame;
     lookbackDay;
-    lookBackCandleForSignal;
     count;
     pageSize;
     defaultIndex;
-    strategy;
+    lookBackCandleForSignal;
+    count;
 
-    constructor({ indicatorConfig: {
-        period = 13,
-        cciLength = 40,
-        cciLookbackBefore = 3,
-        cciLookbackAfter = 3,
-        cciLowerBand = -100,
-        cciUpperBand = 100
-    },
-        timeFrame = "5m",
-        lookbackDay = 1,
-        lookBackCandleForSignal = 3,
-        defaultIndex = "NITY200",
+    rsiAndCe;
+
+    constructor({
+        indicatorConfig,
+        timeFrame = "15m",
+        lookbackDay = 5,
         pageSize = 10,
+        defaultIndex = "NIFTY200",
+        lookBackCandleForSignal = 3,
         count
     }) {
-        this.indicatorConfig = {
-            period,
-            cciLength,
-            cciLookbackBefore,
-            cciLookbackAfter,
-            cciLowerBand,
-            cciUpperBand
-        };
+
+        this.indicatorConfig = indicatorConfig ? indicatorConfig : this.indicatorConfig;
         this.timeFrame = timeFrame;
         this.lookbackDay = lookbackDay;
-        this.lookBackCandleForSignal = lookBackCandleForSignal;
-        this.pageSize = pageSize,
-        this.count = count;
+        this.pageSize = pageSize;
         this.defaultIndex = defaultIndex;
+        this.lookBackCandleForSignal = lookBackCandleForSignal,
+        this.count = count;
 
-        this.strategy = new SSLCciStrategy(this.indicatorConfig);
+
+        this.rsiAndCe = new RsiAndChandaliarExit(this.indicatorConfig);
+
     }
 
     hasRecentSignal(data, lookbackPeriod) {
         const start = Math.max(data.length - lookbackPeriod, 0);
         for (let i = data.length - 1; i >= start; i--) {
-            if (data[i].trade) {
+            if (data[i].signal) {
                 return data[i];
             }
         }
@@ -76,9 +79,8 @@ class SslAndCciService {
                 return { symbol, enrichedData: [], recentSignal: false };
             }
 
-            
 
-            const enrichedData = this.strategy.apply(stockData);
+            const enrichedData = this.rsiAndCe.computeIndicators(stockData);
             console.log(`Stock: ${symbol}`);
 
             const recentSignal = this.hasRecentSignal(enrichedData, this.lookBackCandleForSignal);
@@ -100,14 +102,15 @@ class SslAndCciService {
             } else {
                 const { enrichedData, symbol, recentSignal } = result.value;
                 console.log('symbol', symbol)
-                console.table(enrichedData.map(ele => ({ ...ele, date: new Date(ele.date).toLocaleString() })), ['date', 'open', 'high', 'low', 'close', 'crossover', 'trade']);
+                console.table(enrichedData.map(ele => ({ ...ele, date: new Date(ele.date).toLocaleString() })), ['date', 'open', 'high', 'low', 'close', 'signal']);
                 if (recentSignal && typeof recentSignal === 'object') {
                     console.log('recentSignal', recentSignal)
                     console.log(`Stock with recent signal: ${symbol}`);
                     const stockDocument = new StockData({
-                        name: STATERGY_NAME.SSLCCI,
+                        name: STATERGY_NAME.RSICE,
                         symbol,
-                        ...recentSignal
+                        ...recentSignal,
+                        trade: recentSignal.signal
                     });
                     await stockDocument.save();
                 }
@@ -121,12 +124,13 @@ class SslAndCciService {
 
     async run() {
 
-       logger.info("SSLCCISTATERGYRUN" + new Date().toLocaleString())
+       logger.info("RSICESTATERGY" + new Date().toLocaleString())
         const totalPages = Math.ceil(this.count / this.pageSize);
+
 
         const query = this.defaultIndex ? { indices: this.defaultIndex } : {};
         await StockData.deleteMany({
-            name: STATERGY_NAME.SSLCCI
+            name: STATERGY_NAME.RSICE
         });
 
         for (let i = 1; i <= totalPages; i++) {
@@ -134,9 +138,10 @@ class SslAndCciService {
             const stocks = await StocksSymbol.find(query).skip((i - 1) * this.pageSize).limit(this.pageSize).lean();
             const stocksSymbols = stocks.map(stock => stock.symbol);
 
+
             await this.fetchAndFilterStocks(stocksSymbols);
         }
-        getSelectedStock(STATERGY_NAME.SSLCCI);
+        getSelectedStock(STATERGY_NAME.RSICE);
 
     }
 
@@ -158,7 +163,7 @@ class SslAndCciService {
 
         try {
             await Settings.updateOne({}, {
-                SSLCCI: {
+                RSICE: {
                     indicatorConfig: this.indicatorConfig,
                     timeFrame: this.timeFrame,
                     lookbackDay: this.lookbackDay,
@@ -172,8 +177,6 @@ class SslAndCciService {
             console.log("[Error] in changer settings]", err);
         }
     }
-
 }
 
-
-module.exports = SslAndCciService;
+module.exports = RsiAndCEStatergy;
