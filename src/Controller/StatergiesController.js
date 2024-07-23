@@ -73,3 +73,10 @@ exports.getRunningStatergiesAction = catchAsyncError(async (req, res, next) => {
         data: jobs
     });
 })
+
+exports.getAllStatergiesNameAction = catchAsyncError(async () => {
+    res.status(200).json({
+        success: true,
+        data: Object.values(STATERGY_NAME)
+    })
+})

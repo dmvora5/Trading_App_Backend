@@ -14,7 +14,7 @@ async function getSelectedStock(name, data) {
     try {
         const stocks = data ? data : await StockData.find({
             name: name
-        })
+        }).sort({ volume: -1 }).lean();
         const eventName = EVENT_NAME[name];
         global.io.emit(eventName, stocks)
     } catch (err) {
