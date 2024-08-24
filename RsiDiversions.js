@@ -136,7 +136,7 @@ class StockData {
         const period2 = Math.floor(now.getTime() / 1000);
         const period1 = Math.floor(now.setDate(now.getDate() - days) / 1000);
 
-        const queryOptions = { period1, period2, interval: '5m' };
+        const queryOptions = { period1, period2, interval: '1d' };
         const result = await yahooFinance.chart(symbol, queryOptions);
 
         const stockData = result.quotes.map(entry => ({
@@ -164,6 +164,8 @@ class StockData {
             pivotHigh: pivotHighs[index] ? "Yes" : "No",
             signal: signals[index]
         }));
+
+        console.table(finalData)
 
         return finalData;
     }
@@ -274,8 +276,8 @@ class StockData {
 }
 
 // Usage example:
-StockData.fetchStockData('HDFCBANK.NS', 30).then(stockData => {
+StockData.fetchStockData('SBIN.NS', 300).then(stockData => {
     const signals = stockData.map(data => data.signal);
-    const backtestResult = StockData.backtest(stockData, signals, 100000, 0.02, 0.01);
+    // const backtestResult = StockData.backtest(stockData, signals, 100000, 0.02, 0.01);
 });
 
