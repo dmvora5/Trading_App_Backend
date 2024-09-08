@@ -1,0 +1,92 @@
+const yahooFinance = require('yahoo-finance2').default;
+
+/**
+ * Fetch stock data from Yahoo Finance API
+ * @param {string} symbol - Stock symbol (e.g., "AAPL")
+ * @param {number} days - Number of days for historical data
+ * @returns {Promise<Array>} - Array of stock data objects
+ */
+async function fetchStockData(symbol, days = 10) {
+    const now = new Date();
+    const period2 = Math.floor(now.getTime() / 1000);
+    const period1 = Math.floor(now.setDate(now.getDate() - days) / 1000);
+
+    const queryOptions = { period1, period2, interval: '5m' }; // Change interval as needed
+    const result = await yahooFinance.chart(symbol, queryOptions);
+
+    return result.quotes.map(entry => ({
+        date: new Date(entry.date).toLocaleString(), // Convert timestamp to JS date
+        open: entry.open,
+        high: entry.high,
+        low: entry.low,
+        close: entry.close,
+        volume: entry.volume,
+    }));
+}
+
+/**
+ * Add fractal data to the stock data
+ * @param {Array} data - Array of stock data objects
+ * @param {number} pivotStrength - Number of candles before and after to compare
+ * @param {string} type - Fractal type: 'hl' (High-Low) or 'close'
+ * @returns {Array} - Stock data with fractals
+ */
+function addFractalData(data, pivotStrength = 5, type = 'hl') {
+    data.forEach((current, i) => {
+        if (i >= pivotStrength && i < data.length - pivotStrength) {
+            const prevCandles = data.slice(i - pivotStrength, i);
+            const nextCandles = data.slice(i + 1, i + 1 + pivotStrength);
+
+            const isFractalUp = current.high >= Math.max(...prevCandles.map(c => c.high)) &&
+                current.high >= Math.max(...nextCandles.map(c => c.high));
+
+            const isFractalDown = current.low <= Math.min(...prevCandles.map(c => c.low)) &&
+                current.low <= Math.min(...nextCandles.map(c => c.low));
+
+            // Handle fractals based on type
+            if (type === 'hl') {
+                if (isFractalUp && isFractalDown) {
+                    current.fractal = 'both'; // Both up and down fractal
+                } else if (isFractalUp) {
+                    current.fractal = 'up';
+                } else if (isFractalDown) {
+                    current.fractal = 'down';
+                } else {
+                    current.fractal = null; // No fractal
+                }
+            }
+        } else {
+            current.fractal = null; // No fractal for the first/last pivotStrength candles
+        }
+    });
+    return data;
+}
+
+
+// Main function to fetch stock data and calculate fractals and support/resistance
+(async () => {
+    const symbol = 'BIOCON.NS'; // Example symbol
+    const days = 20; // Example: 20 days of data
+    const pivotStrength = 5; // Number of candles before and after
+    const fractalType = 'hl'; // Type of fractal: 'hl' or 'close'
+
+    try {
+        // Fetch stock data
+        const stockData = await fetchStockData(symbol, days);
+
+        // Step 1: Add fractals to the stock data
+        const stockDataWithFractals = addFractalData(stockData, pivotStrength, fractalType);
+
+        // Step 2: Add support and resistance levels to the stock data
+
+        // Print the data to the console
+        console.table(stockDataWithFractals);
+    } catch (error) {
+        console.error('Error fetching stock data or calculating fractals and support/resistance:', error);
+    }
+})();
+
+
+hear is my fractal detaction code
+
+now look in the image if any candle close above the previous fractal (in this image it's 11:30 candal) and also imaidite after candle also close above the fractal then i need a range value for 11:30 candle low and 11:25 candle high in up brakout case opposite for down breakout state and i need that value afrter conformaition(our case two candle close above fractal) so i need tah value at 11:40 candle you understand

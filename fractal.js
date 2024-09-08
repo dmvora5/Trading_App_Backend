@@ -108,7 +108,21 @@ function attachFVGInfo(allFVGs, current, fvgRange, breakout) {
 }
 
 /**
- * Detects FVGs across all candles.
+ * Checks if the current price is within 0.5% of any valid FVG.
+ * @param {Array} validFVGs - Array of valid FVGs.
+ * @param {number} currentPrice - The current price to check.
+ * @returns {boolean} - Returns true if within 0.5% of any FVG, otherwise false.
+ */
+function checkPriceNearFVG(validFVGs, currentPrice) {
+    return validFVGs.some(fvg => {
+        const lowerBound = fvg.low * 0.995; // 0.5% below the lower bound
+        const upperBound = fvg.high * 1.005; // 0.5% above the upper bound
+        return currentPrice >= lowerBound && currentPrice <= upperBound;
+    });
+}
+
+/**
+ * Detects FVGs across all candles and checks if the price is near any valid FVG.
  * @param {Array} data - The array of stock data objects with identified fractals.
  * @returns {Object} - The updated FVGs and data with FVG information.
  */
@@ -120,10 +134,18 @@ function detectFVGs(data) {
     data.forEach((current, index, array) => {
         fractals = fractals.filter(fractal => {
             if (fractal.pivot === 'up' && current.pivot === 'up' && current.high > fractal.high) {
-                return false;
+                if (current.close >= fractal.high) {
+                    return false;  // Invalidate previous fractal
+                } else {
+                    return true;   // New fractal is invalid
+                }
             }
             if (fractal.pivot === 'down' && current.pivot === 'down' && current.low < fractal.low) {
-                return false;
+                if (current.close <= fractal.low) {
+                    return false;  // Invalidate previous fractal
+                } else {
+                    return true;   // New fractal is invalid
+                }
             }
             return true;
         });
@@ -131,30 +153,32 @@ function detectFVGs(data) {
         let fvgRange = null;
         let breakout = null;
 
-        fractals.forEach((fractal, fractalIndex) => {
-            if (
-                (fractal.pivot === 'up' && current.close > fractal.high) ||
-                (fractal.pivot === 'down' && current.close < fractal.low)
-            ) {
-                const prevCandle = array[index - 1];
-                fvgRange = fractal.pivot === 'up'
-                    ? `${current.low} - ${prevCandle.high}`
-                    : `${prevCandle.low} - ${current.high}`;
-                
-                breakout = "yes";
+        if (fractals.length > 0) {
+            fractals.forEach((fractal, fractalIndex) => {
+                if (
+                    (fractal.pivot === 'up' && current.close > fractal.high) ||
+                    (fractal.pivot === 'down' && current.close < fractal.low)
+                ) {
+                    const prevCandle = array[index - 1];
+                    fvgRange = fractal.pivot === 'up'
+                        ? `${current.low} - ${prevCandle.high}`
+                        : `${prevCandle.low} - ${current.high}`;
+                    
+                    breakout = "yes";
 
-                allFVGs.push({
-                    type: fractal.pivot,
-                    range: fvgRange,
-                    low: fractal.pivot === 'up' ? current.low : prevCandle.low,
-                    high: fractal.pivot === 'up' ? prevCandle.high : current.high,
-                    valid: "valid",
-                    formedAt: current.date
-                });
+                    allFVGs.push({
+                        type: fractal.pivot,
+                        range: fvgRange,
+                        low: fractal.pivot === 'up' ? current.low : prevCandle.low,
+                        high: fractal.pivot === 'up' ? prevCandle.high : current.high,
+                        valid: "valid",
+                        formedAt: current.date
+                    });
 
-                fractals.splice(fractalIndex, 1);
-            }
-        });
+                    fractals.splice(fractalIndex, 1);
+                }
+            });
+        }
 
         if (current.pivot) {
             fractals.push({ ...current, index });
@@ -171,8 +195,8 @@ function detectFVGs(data) {
  */
 async function main() {
     try {
-        const symbol = 'ICICIBANK.NS';
-        const days = 10;
+        const symbol = 'BIOCON.NS';
+        const days = 5;
         const lookback = 5;
 
         let stockData = await fetchStockData(symbol, days);
@@ -183,13 +207,35 @@ async function main() {
 
         const validatedFVGs = validateFVGs(allFVGs, stockData);
 
-        const finalData = fvgInfo.map(info =>
-            attachFVGInfo(validatedFVGs, info.current, info.fvgRange, info.breakout)
-        );
+        const finalData = fvgInfo.map(info => {
+            const { current } = info;
+            const isPriceNearFVG = current && current.close !== undefined
+                ? checkPriceNearFVG(validatedFVGs, current.close)
+                : null;
 
-        console.table(finalData.map(ele => ({
-            ...ele,
-            date: new Date(ele.date).toLocaleString()
+            return {
+                ...info,
+                date: new Date(current.date).toLocaleString(),
+                nearFVG: isPriceNearFVG ? 'near FVG' : null
+            };
+        }).map((info, idx, arr) => {
+            // Ensure only one candle is marked "near FVG"
+            if (info.nearFVG && idx > 0 && arr[idx - 1].nearFVG) {
+                return { ...info, nearFVG: null };
+            }
+            return info;
+        });
+
+        console.table(finalData.map(({ date, current, fvgRange, breakout, nearFVG }) => ({
+            date,
+            open: current.open,
+            high: current.high,
+            low: current.low,
+            close: current.close,
+            volume: current.volume,
+            fvgRange,
+            breakout,
+            nearFVG
         })));
     } catch (error) {
         console.error('An error occurred during processing:', error);
