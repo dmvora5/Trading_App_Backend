@@ -14,7 +14,7 @@ async function fetchStockData(symbol, days = 10) {
     pastDate.setDate(now.getDate() - days);
     const period1 = Math.floor(pastDate.getTime() / 1000);
 
-    const queryOptions = { period1, period2, interval: '5m' };
+    const queryOptions = { period1, period2, interval: '1h' };
     
     try {
         const result = await yahooFinance.chart(symbol, queryOptions);
@@ -149,8 +149,8 @@ function detectFVGs(data, pivotStrength = 5) {
  */
 async function main() {
     try {
-        const symbol = 'BIOCON.NS';
-        const days = 5;
+        const symbol = 'SYNGENE.NS';
+        const days = 30;
         const pivotStrength = 5;
 
         let stockData = await fetchStockData(symbol, days);
